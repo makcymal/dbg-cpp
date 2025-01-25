@@ -1,6 +1,7 @@
 /*
   The macro dbg() in C++, just like in Rust
-  This provides two macros: dbg(...) and DERIVE_DEBUG(...), an analogue of dbg!(...) and #[derive(Debug)]
+  This provides two macros: dbg(...) and DERIVE_DEBUG(...), an analogue of
+  dbg!(...) and #[derive(Debug)]
 
   dbg(...)
   Print the debug information in the following form:
@@ -36,20 +37,8 @@
   their extension abi::__cxa_demangle. On MSVC class names can be mangled a bit
 */
 
+
 #pragma once
-
-#if defined(__GNUC__) || defined(__clang__)
-#define DBG_DEMANGLE_CLASS_NAMES
-#include <cxxabi.h>
-#endif
-
-
-#if !defined(DBG_APPEND_FILE) && !defined(DBG_WRITE_TO_STDOUT)
-#define DBG_WRITE_TO_FILE
-#endif
-
-
-namespace __dbg_internal {
 
 #include <array>
 #include <concepts>
@@ -72,30 +61,57 @@ namespace __dbg_internal {
 #include <vector>
 
 
+// On GCC and Clang enable the extension abi::__cxa_demangle that demangles
+// user-defined class names. On MSVC class names can be mangled a bit
+#if defined(__GNUC__) || defined(__clang__)
+#define DBG_DEMANGLE_CLASS_NAMES
+#include <cxxabi.h>
+#endif
+
+
+// Incapsulate logic within this namespace
+namespace __dbg_internal {
+
+// By default, write to clean file "dbg.log"
+#if !defined(DBG_APPEND_FILE) && !defined(DBG_WRITE_TO_STDOUT)
+#define DBG_WRITE_TO_FILE
+#endif
+
 #if defined(DBG_WRITE_TO_FILE)
 std::ofstream out("dbg.log");
 #endif
 
+// Or append to "dbg.log" if user wishes so
 #if defined(DBG_APPEND_TO_FILE)
 std::ofstream out("dbg.log", std::ios_base::app);
 #endif
 
+// Or append to stdout if user wishes so
 #if defined(DBG_WRITE_TO_STDOUT)
 auto &out = std::cout;
 #endif
 
+// dbg() use it to add one more \n between calls
+bool dbg_was_already_called = false;
 
+// The current global indentation, PrettyPrint() functions prints it along with
+// the data to make it readable
 std::string indent;
 
+// Add two spaces to indentation before the new {} block
 void IncreaseIndent() {
   indent += "  ";
 }
 
+// Erase two spaces from indentation after the {} block
 void DecreaseIndent() {
   indent.resize(indent.size() - 2);
 }
 
 
+// Tries to print type name, without template parameter types.
+// On GCC and Clang user-defined class names turn out to be correct, thanks to
+// their extension abi::__cxa_demangle. On MSVC class names can be mangled a bit
 template <class T>
 void PrintTypeName(const T &x) {
   const char *mangled = typeid(x).name();
@@ -111,7 +127,15 @@ void PrintTypeName(const T &x) {
 
   for (int i = 0; name[i] != '\0'; ++i) {
     if (name[i] == '<') {
-      out << std::string_view(name, name + i);
+      std::string_view name_view(name, name + i);
+      // Make weird std names more readable
+      if (name_view == "std::__cxx11::basic_string") {
+        out << "std::string";
+      } else if (name_view == "std::__cxx11::list") {
+        out << "std::list";
+      } else {
+        out << name_view;
+      }
       return;
     }
   }
@@ -119,6 +143,7 @@ void PrintTypeName(const T &x) {
 }
 
 
+// Prints current time in form of <dd.mm.yy HH:MM:SS>
 void PrintCurrTime() {
   std::time_t timestamp = std::time(nullptr);
   std::tm *now = std::localtime(&timestamp);
@@ -633,10 +658,10 @@ class ArgNames {
 };
 
 
-// Print the last argument from what was the variadic list assigning it the
-// name from ArgNames
+// Call the PrettyPrint on the last argument from the given variadic list
+// assigning it the top name from ArgNames.
 template <class T>
-void DbgNamedArgs(ArgNames &names, T last) {
+void MultiplexPrettyPrintOnNamedArgs(ArgNames &names, T last) {
   out << indent << names.pop() << ": ";
   PrintTypeName(last);
   out << " = ";
@@ -644,24 +669,25 @@ void DbgNamedArgs(ArgNames &names, T last) {
   out << "\n";
 }
 
-// Print the first argument from the given variadic list assigning it the top
-// name from ArgNames. The following call reduces argument list by one
+// Call the PrettyPrint on the first argument from the given variadic list
+// assigning it the top name from ArgNames. The following call reduces argument
+// list by one
 template <class T, class... Args>
-void DbgNamedArgs(ArgNames &names, T first, Args... args) {
+void MultiplexPrettyPrintOnNamedArgs(ArgNames &names, T first, Args... args) {
   out << indent << names.pop() << ": ";
   PrintTypeName(first);
   out << " = ";
   PrettyPrint(first);
   out << "\n";
-  DbgNamedArgs(names, args...);
+  MultiplexPrettyPrintOnNamedArgs(names, args...);
 }
 
-// Parse single C-string into argument names that DERIVE_DEBUG was called with
-// and start printing the arguments one by one
+// Parse single C-string into argument names that dbg or DERIVE_DEBUG was called
+// with and start calling PrettyPrint on the arguments one by one
 template <class... Args>
-void DbgVaArgs(const char *names, Args... args) {
+void MultiplexPrettyPrintOnVaArgs(const char *names, Args... args) {
   ArgNames arg_names(names);
-  DbgNamedArgs(arg_names, args...);
+  MultiplexPrettyPrintOnNamedArgs(arg_names, args...);
 }
 
 }  // namespace __dbg_internal
@@ -671,16 +697,15 @@ void DbgVaArgs(const char *names, Args... args) {
 // [<file>:<line> (<function>) <date> <time>]
 // <variable>: <type> = <pretty-printed variable>
 // This is repeated for each nested variable with the nice indentation
-#define dbg(x)                                                      \
+#define dbg(...)                                                    \
+  if (__dbg_internal::dbg_was_already_called)                       \
+    __dbg_internal::out << "\n";                                    \
+  __dbg_internal::dbg_was_already_called = true;                    \
   __dbg_internal::out << "[" << __FILE__ << ":" << __LINE__ << " (" \
                       << __func__ << ") ";                          \
   __dbg_internal::PrintCurrTime();                                  \
   __dbg_internal::out << "]\n";                                     \
-  __dbg_internal::out << #x << ": ";                                \
-  __dbg_internal::PrintTypeName(x);                                 \
-  __dbg_internal::out << " = ";                                     \
-  __dbg_internal::PrettyPrint(x);                                   \
-  __dbg_internal::out << "\n\n";
+  __dbg_internal::MultiplexPrettyPrintOnVaArgs(#__VA_ARGS__, __VA_ARGS__);
 
 
 // Generate the PrettyPrint() method within class, that will called from
@@ -689,11 +714,11 @@ void DbgVaArgs(const char *names, Args... args) {
 // instance: DERIVE_DEBUG(a, b + c, (Method(a, b))). In order to correctly split
 // on ["a", "b + c", "Method(a, b)"], not ["a", "b + c", "Method(a", "b)"],
 // the method callings should be enclosed in parentheses.
-#define DERIVE_DEBUG(...)                                 \
-  void PrettyPrint() const {                              \
-    __dbg_internal::out << "{\n";                         \
-    __dbg_internal::IncreaseIndent();                     \
-    __dbg_internal::DbgVaArgs(#__VA_ARGS__, __VA_ARGS__); \
-    __dbg_internal::DecreaseIndent();                     \
-    __dbg_internal::out << __dbg_internal::indent << "}"; \
+#define DERIVE_DEBUG(...)                                                    \
+  void PrettyPrint() const {                                                 \
+    __dbg_internal::out << "{\n";                                            \
+    __dbg_internal::IncreaseIndent();                                        \
+    __dbg_internal::MultiplexPrettyPrintOnVaArgs(#__VA_ARGS__, __VA_ARGS__); \
+    __dbg_internal::DecreaseIndent();                                        \
+    __dbg_internal::out << __dbg_internal::indent << "}";                    \
   }
