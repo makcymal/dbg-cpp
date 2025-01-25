@@ -1,0 +1,12 @@
+Checks: |
+  modernize-use-nullptr
+  modernize-use-bool-literals
+  modernize-use-string-compare
+  modernize-use-constexpr
+  readability-braces-around-statements
+  cppcoreguidelines-pro-type-cstyle-cast
+  performance-unnecessary-value-param
+  performance-move-const-arg
+  bugprone-use-after-move
+  bugprone-dereferencing-null-pointer
+  bugprone-infinite-recursion
