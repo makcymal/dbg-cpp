@@ -168,7 +168,7 @@ concept is_class = std::is_class_v<T>;
 // Print scalar type like int, float or char
 template <class T>
   requires is_scalar<T>
-void PrettyPrint(const T &x) {
+void PrettyPrint(T x) {
   out << x;
 }
 
@@ -176,13 +176,13 @@ void PrettyPrint(const T &x) {
 // Note that class must generate PrettyPrint method using DERIVE_DEBUG macro
 template <class T>
   requires is_class<T>
-void PrettyPrint(const T &x) {
+void PrettyPrint(T &x) {
   x.PrettyPrint();
 }
 
 
 // Print std::string
-void PrettyPrint(const std::string &x) {
+void PrettyPrint(std::string &x) {
   out << "\"" << x << "\"";
 }
 
@@ -190,7 +190,7 @@ void PrettyPrint(const std::string &x) {
 // Print std::array of scalars
 template <class T, size_t N>
   requires is_scalar<T>
-void PrettyPrint(const std::array<T, N> &x) {
+void PrettyPrint(std::array<T, N> &x) {
   out << "{";
   if (!x.empty()) {
     PrettyPrint(x[0]);
@@ -205,7 +205,7 @@ void PrettyPrint(const std::array<T, N> &x) {
 // Print std::array of class objects
 template <class T, size_t N>
   requires is_class<T>
-void PrettyPrint(const std::array<T, N> &x) {
+void PrettyPrint(std::array<T, N> &x) {
   if (x.empty()) {
     out << "{}";
     return;
@@ -228,7 +228,7 @@ void PrettyPrint(const std::array<T, N> &x) {
 // Print std::vector of scalars
 template <class T>
   requires is_scalar<T>
-void PrettyPrint(const std::vector<T> &x) {
+void PrettyPrint(std::vector<T> &x) {
   out << "{";
   if (!x.empty()) {
     PrettyPrint(x[0]);
@@ -243,7 +243,7 @@ void PrettyPrint(const std::vector<T> &x) {
 // Print std::vector of class objects
 template <class T>
   requires is_class<T>
-void PrettyPrint(const std::vector<T> &x) {
+void PrettyPrint(std::vector<T> &x) {
   if (x.empty()) {
     out << "{}";
     return;
@@ -266,7 +266,7 @@ void PrettyPrint(const std::vector<T> &x) {
 // Print std::deque of scalars
 template <class T>
   requires is_scalar<T>
-void PrettyPrint(const std::deque<T> &x) {
+void PrettyPrint(std::deque<T> &x) {
   out << "{";
   if (!x.empty()) {
     PrettyPrint(x[0]);
@@ -281,7 +281,7 @@ void PrettyPrint(const std::deque<T> &x) {
 // Print std::deque of class objects
 template <class T>
   requires is_class<T>
-void PrettyPrint(const std::deque<T> &x) {
+void PrettyPrint(std::deque<T> &x) {
   if (x.empty()) {
     out << "{}";
     return;
@@ -386,7 +386,7 @@ void PrettyPrint(std::stack<T> x) {
 // Print std::list of scalars
 template <class T>
   requires is_scalar<T>
-void PrettyPrint(const std::list<T> &x) {
+void PrettyPrint(std::list<T> &x) {
   out << "{";
   auto it = x.begin(), end = x.end();
   if (!x.empty()) {
@@ -403,7 +403,7 @@ void PrettyPrint(const std::list<T> &x) {
 // Print std::list of class objects
 template <class T>
   requires is_class<T>
-void PrettyPrint(const std::list<T> &x) {
+void PrettyPrint(std::list<T> &x) {
   if (x.empty()) {
     out << "{}";
     return;
@@ -427,7 +427,7 @@ void PrettyPrint(const std::list<T> &x) {
 // Print std::set of scalars
 template <class T>
   requires is_scalar<T>
-void PrettyPrint(const std::set<T> &x) {
+void PrettyPrint(std::set<T> &x) {
   out << "{";
   auto it = x.begin(), end = x.end();
   if (!x.empty()) {
@@ -444,7 +444,7 @@ void PrettyPrint(const std::set<T> &x) {
 // Print std::set of class objects
 template <class T>
   requires is_class<T>
-void PrettyPrint(const std::set<T> &x) {
+void PrettyPrint(std::set<T> &x) {
   if (x.empty()) {
     out << "{}";
     return;
@@ -468,7 +468,7 @@ void PrettyPrint(const std::set<T> &x) {
 // Print std::unordered_set of scalars
 template <class T>
   requires is_scalar<T>
-void PrettyPrint(const std::unordered_set<T> &x) {
+void PrettyPrint(std::unordered_set<T> &x) {
   out << "{";
   auto it = x.begin(), end = x.end();
   if (!x.empty()) {
@@ -485,7 +485,7 @@ void PrettyPrint(const std::unordered_set<T> &x) {
 // Print std::unordered_set of class objects
 template <class T>
   requires is_class<T>
-void PrettyPrint(const std::unordered_set<T> &x) {
+void PrettyPrint(std::unordered_set<T> &x) {
   if (x.empty()) {
     out << "{}";
     return;
@@ -507,7 +507,7 @@ void PrettyPrint(const std::unordered_set<T> &x) {
 
 // Print std::map regargdell keys and values are scalars or class objects
 template <class K, class V>
-void PrettyPrint(const std::map<K, V> &x) {
+void PrettyPrint(std::map<K, V> &x) {
   if (x.empty()) {
     out << "{}";
     return;
@@ -534,7 +534,7 @@ void PrettyPrint(const std::map<K, V> &x) {
 
 // Print std::unordered_map regargdell keys and values are scalars or classes
 template <class K, class V>
-void PrettyPrint(const std::unordered_map<K, V> &x) {
+void PrettyPrint(std::unordered_map<K, V> &x) {
   if (x.empty()) {
     out << "{}";
     return;
@@ -562,7 +562,7 @@ void PrettyPrint(const std::unordered_map<K, V> &x) {
 // Print unique pointer to scalar
 template <class T>
   requires is_scalar<T>
-void PrettyPrint(const std::unique_ptr<T> &x) {
+void PrettyPrint(std::unique_ptr<T> &x) {
   out << "{";
   PrettyPrint(*x);
   out << "}";
@@ -571,7 +571,7 @@ void PrettyPrint(const std::unique_ptr<T> &x) {
 // Print unique pointer to class
 template <class T>
   requires is_class<T>
-void PrettyPrint(const std::unique_ptr<T> &x) {
+void PrettyPrint(std::unique_ptr<T> &x) {
   IncreaseIndent();
   out << "{\n" << indent << "< -> ";
   PrintTypeName(*x);
@@ -585,7 +585,7 @@ void PrettyPrint(const std::unique_ptr<T> &x) {
 // Print shared pointer to scalar
 template <class T>
   requires is_scalar<T>
-void PrettyPrint(const std::shared_ptr<T> &x) {
+void PrettyPrint(std::shared_ptr<T> &x) {
   out << "{";
   PrettyPrint(*x);
   out << "}";
@@ -594,7 +594,7 @@ void PrettyPrint(const std::shared_ptr<T> &x) {
 // Print shared pointer to class
 template <class T>
   requires is_class<T>
-void PrettyPrint(const std::shared_ptr<T> &x) {
+void PrettyPrint(std::shared_ptr<T> &x) {
   IncreaseIndent();
   out << "{\n" << indent << "<";
   PrintTypeName(*x);
@@ -715,7 +715,7 @@ void MultiplexPrettyPrintOnVaArgs(const char *names, Args... args) {
 // on ["a", "b + c", "Method(a, b)"], not ["a", "b + c", "Method(a", "b)"],
 // the method callings should be enclosed in parentheses.
 #define DERIVE_DEBUG(...)                                                    \
-  void PrettyPrint() const {                                                 \
+  void PrettyPrint() {                                                       \
     __dbg_internal::out << "{\n";                                            \
     __dbg_internal::IncreaseIndent();                                        \
     __dbg_internal::MultiplexPrettyPrintOnVaArgs(#__VA_ARGS__, __VA_ARGS__); \
