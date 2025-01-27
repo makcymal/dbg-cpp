@@ -41,13 +41,10 @@
 #pragma once
 
 #include <array>
-#include <concepts>
 #include <ctime>
 #include <deque>
 #include <fstream>
 #include <iomanip>
-#include <ios>
-#include <iostream>
 #include <list>
 #include <map>
 #include <memory>
@@ -69,6 +66,12 @@
 #endif
 
 
+// To write to stdout if user wishes so
+#if defined(DBG_WRITE_TO_STDOUT)
+#include <iostream>
+#endif
+
+
 // Incapsulate logic within this namespace
 namespace __dbg_internal {
 
@@ -86,13 +89,17 @@ std::ofstream out("dbg.log");
 std::ofstream out("dbg.log", std::ios_base::app);
 #endif
 
-// Or append to stdout if user wishes so
+// Or write to stdout if user wishes so
 #if defined(DBG_WRITE_TO_STDOUT)
 auto &out = std::cout;
 #endif
 
 // dbg() use it to add one more \n between calls
-bool dbg_was_already_called = false;
+bool dbg_was_called = false;
+
+// dbg() use it to determine if it should work at all
+bool dbg_enabled = true;
+
 
 // The current global indentation, PrettyPrint() functions prints it along with
 // the data to make it readable
@@ -178,6 +185,13 @@ template <class T>
   requires is_class<T>
 void PrettyPrint(T &x) {
   x.PrettyPrint();
+}
+
+
+// Print what's behind std::ref
+template <class T>
+void PrettyPrint(std::reference_wrapper<T> x) {
+  PrettyPrint(x.get());
 }
 
 
@@ -661,7 +675,7 @@ class ArgNames {
 // Call the PrettyPrint on the last argument from the given variadic list
 // assigning it the top name from ArgNames.
 template <class T>
-void MultiplexPrettyPrintOnNamedArgs(ArgNames &names, T last) {
+void MultiplexPrettyPrintOnNamedArgs(ArgNames &names, T &last) {
   out << indent << names.pop() << ": ";
   PrintTypeName(last);
   out << " = ";
@@ -673,7 +687,7 @@ void MultiplexPrettyPrintOnNamedArgs(ArgNames &names, T last) {
 // assigning it the top name from ArgNames. The following call reduces argument
 // list by one
 template <class T, class... Args>
-void MultiplexPrettyPrintOnNamedArgs(ArgNames &names, T first, Args... args) {
+void MultiplexPrettyPrintOnNamedArgs(ArgNames &names, T &first, Args &...args) {
   out << indent << names.pop() << ": ";
   PrintTypeName(first);
   out << " = ";
@@ -685,7 +699,7 @@ void MultiplexPrettyPrintOnNamedArgs(ArgNames &names, T first, Args... args) {
 // Parse single C-string into argument names that dbg or DERIVE_DEBUG was called
 // with and start calling PrettyPrint on the arguments one by one
 template <class... Args>
-void MultiplexPrettyPrintOnVaArgs(const char *names, Args... args) {
+void MultiplexPrettyPrintOnVaArgs(const char *names, Args &...args) {
   ArgNames arg_names(names);
   MultiplexPrettyPrintOnNamedArgs(arg_names, args...);
 }
@@ -697,15 +711,18 @@ void MultiplexPrettyPrintOnVaArgs(const char *names, Args... args) {
 // [<file>:<line> (<function>) <date> <time>]
 // <variable>: <type> = <pretty-printed variable>
 // This is repeated for each nested variable with the nice indentation
-#define dbg(...)                                                    \
-  if (__dbg_internal::dbg_was_already_called)                       \
-    __dbg_internal::out << "\n";                                    \
-  __dbg_internal::dbg_was_already_called = true;                    \
-  __dbg_internal::out << "[" << __FILE__ << ":" << __LINE__ << " (" \
-                      << __func__ << ") ";                          \
-  __dbg_internal::PrintCurrTime();                                  \
-  __dbg_internal::out << "]\n";                                     \
-  __dbg_internal::MultiplexPrettyPrintOnVaArgs(#__VA_ARGS__, __VA_ARGS__);
+#define dbg(...)                                                             \
+  if (__dbg_internal::dbg_enabled) {                                         \
+    if (__dbg_internal::dbg_was_called)                                      \
+      __dbg_internal::out << "\n";                                           \
+    __dbg_internal::dbg_was_called = true;                                   \
+    __dbg_internal::out << "[" << __FILE__ << ":" << __LINE__ << " ("        \
+                        << __func__ << ") ";                                 \
+    __dbg_internal::PrintCurrTime();                                         \
+    __dbg_internal::out << "]\n";                                            \
+    __dbg_internal::MultiplexPrettyPrintOnVaArgs(#__VA_ARGS__, __VA_ARGS__); \
+    std::flush(__dbg_internal::out);                                         \
+  }
 
 
 // Generate the PrettyPrint() method within class, that will called from
@@ -721,4 +738,10 @@ void MultiplexPrettyPrintOnVaArgs(const char *names, Args... args) {
     __dbg_internal::MultiplexPrettyPrintOnVaArgs(#__VA_ARGS__, __VA_ARGS__); \
     __dbg_internal::DecreaseIndent();                                        \
     __dbg_internal::out << __dbg_internal::indent << "}";                    \
+    std::flush(__dbg_internal::out);                                         \
   }
+
+
+// This provides the ability of turning off debugging on some areas of code
+#define DISABLE_DEBUG __dbg_internal::dbg_enabled = false;
+#define ENABLE_DEBUG __dbg_internal::dbg_enabled = true;
