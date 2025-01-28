@@ -107,6 +107,323 @@ bool dbg_enabled = true;
 std::string indent;
 
 // Add two spaces to indentation before the new {} block
+void IncreaseIndent();
+
+// Erase two spaces from indentation after the {} block
+void DecreaseIndent();
+
+
+// Tries to print type name, without template parameter types.
+// On GCC and Clang user-defined class names turn out to be correct, thanks to
+// their extension abi::__cxa_demangle. On MSVC class names can be mangled a bit
+template <class T>
+void PrintTypeName(const T &x);
+
+
+// Prints current time in form of <dd.mm.yy HH:MM:SS>
+void PrintCurrTime();
+
+
+// Distiguish scalar types like int, float or char
+template <class T>
+concept is_scalar = std::is_scalar_v<T>;
+
+// Distinguish class types, regardless from std or user-defined
+template <class T>
+concept is_class = std::is_class_v<T>;
+
+
+// Print scalar type like int, float or char
+template <class T>
+  requires is_scalar<T>
+void PrettyPrint(T x);
+
+// Print any class object, that isn't overloaded later
+// Note that class must generate PrettyPrint method using DERIVE_DEBUG macro
+template <class T>
+  requires is_class<T>
+void PrettyPrint(const T &x);
+
+
+// Print what's behind std::ref
+template <class T>
+void PrettyPrint(std::reference_wrapper<T> x);
+
+
+// Print std::pair of two scalars
+template <class F, class S>
+  requires is_scalar<F> && is_scalar<S>
+void PrettyPrint(const std::pair<F, S> &x);
+
+// Print std::pair where at least one element is class object
+template <class F, class S>
+  requires is_class<F> || is_class<S>
+void PrettyPrint(const std::pair<F, S> &x);
+
+
+// Print std::string
+void PrettyPrint(const std::string &x);
+
+// Print std::string_view
+void PrettyPrint(const std::string_view &x);
+
+// Print std::stringstream contents
+void PrettyPrint(const std::stringstream &x);
+
+
+// Print std::array of scalars
+template <class T, size_t N>
+  requires is_scalar<T>
+void PrettyPrint(const std::array<T, N> &x);
+
+// Print std::array of class objects
+template <class T, size_t N>
+  requires is_class<T>
+void PrettyPrint(const std::array<T, N> &x);
+
+
+// Print std::vector of scalars
+template <class T>
+  requires is_scalar<T>
+void PrettyPrint(const std::vector<T> &x);
+
+// Print std::vector of class objects
+template <class T>
+  requires is_class<T>
+void PrettyPrint(const std::vector<T> &x);
+
+
+// Print std::deque of scalars
+template <class T>
+  requires is_scalar<T>
+void PrettyPrint(const std::deque<T> &x);
+
+// Print std::deque of class objects
+template <class T>
+  requires is_class<T>
+void PrettyPrint(const std::deque<T> &x);
+
+
+// Print std::queue of scalars
+template <class T>
+  requires is_scalar<T>
+void PrettyPrint(std::queue<T> x);
+
+// Print std::queue of class objects
+template <class T>
+  requires is_class<T> && std::is_copy_constructible_v<T>
+void PrettyPrint(std::queue<T> x);
+
+
+// Print std::stack of scalars
+template <class T>
+  requires is_scalar<T>
+void PrettyPrint(std::stack<T> x);
+
+// Print std::stack of class objects
+template <class T>
+  requires is_class<T> && std::is_copy_constructible_v<T>
+void PrettyPrint(std::stack<T> x);
+
+
+// Print std::list of scalars
+template <class T>
+  requires is_scalar<T>
+void PrettyPrint(const std::list<T> &x);
+
+// Print std::list of class objects
+template <class T>
+  requires is_class<T>
+void PrettyPrint(const std::list<T> &x);
+
+
+// Print std::set of scalars
+template <class T>
+  requires is_scalar<T>
+void PrettyPrint(const std::set<T> &x);
+
+// Print std::set of class objects
+template <class T>
+  requires is_class<T>
+void PrettyPrint(const std::set<T> &x);
+
+
+// Print std::unordered_set of scalars
+template <class T>
+  requires is_scalar<T>
+void PrettyPrint(const std::unordered_set<T> &x);
+
+// Print std::unordered_set of class objects
+template <class T>
+  requires is_class<T>
+void PrettyPrint(const std::unordered_set<T> &x);
+
+
+// Print std::map regargdell keys and values are scalars or class objects
+template <class K, class V>
+void PrettyPrint(const std::map<K, V> &x);
+
+
+// Print std::unordered_map regargdell keys and values are scalars or classes
+template <class K, class V>
+void PrettyPrint(const std::unordered_map<K, V> &x);
+
+
+// Print unique pointer to scalar
+template <class T>
+  requires is_scalar<T>
+void PrettyPrint(const std::unique_ptr<T> &x);
+
+// Print unique pointer to class
+template <class T>
+  requires is_class<T>
+void PrettyPrint(const std::unique_ptr<T> &x);
+
+
+// Print shared pointer to scalar
+template <class T>
+  requires is_scalar<T>
+void PrettyPrint(const std::shared_ptr<T> &x);
+
+// Print shared pointer to class
+template <class T>
+  requires is_class<T>
+void PrettyPrint(const std::shared_ptr<T> &x);
+
+
+// Parse single C-string into argument names that DERIVE_DEBUG was called with
+// DERIVE_DEBUG can be called with fields, expressions and method calls, for
+// instance: DERIVE_DEBUG(a, b + c, (Method(a, b))). In order to correctly split
+// on ["a", "b + c", "Method(a, b)"], not ["a", "b + c", "Method(a", "b)"],
+// the method callings should be enclosed in parentheses.
+class ArgNames {
+ public:
+  ArgNames(const char *args) : args_(args) {
+  }
+
+  std::string pop() {
+    for (; idx_ < args_.size() and isspace(args_[idx_]); ++idx_) {
+    }
+    if (idx_ == args_.size()) {
+      return "";
+    }
+
+    std::string name;
+    if (args_[idx_] == '(') {
+      int lvl = 1, end = idx_ + 1;
+      for (; end < args_.size(); ++end) {
+        if (args_[end] == '(') {
+          ++lvl;
+        } else if (args_[end] == ')') {
+          --lvl;
+        }
+
+        if (lvl == 0) {
+          break;
+        }
+      }
+      name = args_.substr(idx_ + 1, end - idx_ - 1);
+      for (; end < args_.size() and args_[end] != ','; ++end) {
+      }
+      idx_ = end + 1;
+
+    } else {
+      int end = idx_ + 1;
+      for (; end < args_.size() and args_[end] != ','; ++end) {
+      }
+      name = args_.substr(idx_, end - idx_);
+      idx_ = end + 1;
+    }
+
+    return name;
+  }
+
+ private:
+  std::string args_;
+  int idx_ = 0;
+};
+
+
+// Call the PrettyPrint on the last argument from the given variadic list
+// assigning it the top name from ArgNames.
+template <class T>
+void MultiplexPrettyPrintOnNamedArgs(ArgNames &names, const T &last) {
+  out << indent << names.pop() << ": ";
+  PrintTypeName(last);
+  out << " = ";
+  PrettyPrint(last);
+  out << "\n";
+}
+
+// Call the PrettyPrint on the first argument from the given variadic list
+// assigning it the top name from ArgNames. The following call reduces argument
+// list by one
+template <class T, class... Args>
+void MultiplexPrettyPrintOnNamedArgs(ArgNames &names, const T &first,
+                                     const Args &...args) {
+  out << indent << names.pop() << ": ";
+  PrintTypeName(first);
+  out << " = ";
+  PrettyPrint(first);
+  out << "\n";
+  MultiplexPrettyPrintOnNamedArgs(names, args...);
+}
+
+// Parse single C-string into argument names that dbg or DERIVE_DEBUG was called
+// with and start calling PrettyPrint on the arguments one by one
+template <class... Args>
+void MultiplexPrettyPrintOnVaArgs(const char *names, const Args &...args) {
+  ArgNames arg_names(names);
+  MultiplexPrettyPrintOnNamedArgs(arg_names, args...);
+}
+
+}  // namespace __dbg_internal
+
+
+// Print the debug information in the following form:
+// [<file>:<line> (<function>) <date> <time>]
+// <variable>: <type> = <pretty-printed variable>
+// This is repeated for each nested variable with the nice indentation
+#define dbg(...)                                                             \
+  if (__dbg_internal::dbg_enabled) {                                         \
+    if (__dbg_internal::dbg_was_called)                                      \
+      __dbg_internal::out << "\n";                                           \
+    __dbg_internal::dbg_was_called = true;                                   \
+    __dbg_internal::out << "[" << __FILE__ << ":" << __LINE__ << " ("        \
+                        << __func__ << ") ";                                 \
+    __dbg_internal::PrintCurrTime();                                         \
+    __dbg_internal::out << "]\n";                                            \
+    __dbg_internal::MultiplexPrettyPrintOnVaArgs(#__VA_ARGS__, __VA_ARGS__); \
+    std::flush(__dbg_internal::out);                                         \
+  }
+
+
+// Generate the PrettyPrint() method within class, that will called from
+// __dbg_internal::PrettyPrint function for user-defined classes.
+// DERIVE_DEBUG can be called with fields, expressions and method calls, for
+// instance: DERIVE_DEBUG(a, b + c, (Method(a, b))). In order to correctly split
+// on ["a", "b + c", "Method(a, b)"], not ["a", "b + c", "Method(a", "b)"],
+// the method callings should be enclosed in parentheses.
+#define DERIVE_DEBUG(...)                                                    \
+  void PrettyPrint() {                                                       \
+    __dbg_internal::out << "{\n";                                            \
+    __dbg_internal::IncreaseIndent();                                        \
+    __dbg_internal::MultiplexPrettyPrintOnVaArgs(#__VA_ARGS__, __VA_ARGS__); \
+    __dbg_internal::DecreaseIndent();                                        \
+    __dbg_internal::out << __dbg_internal::indent << "}";                    \
+    std::flush(__dbg_internal::out);                                         \
+  }
+
+
+// This provides the ability of turning off debugging on some areas of code
+#define DISABLE_DEBUG __dbg_internal::dbg_enabled = false;
+#define ENABLE_DEBUG __dbg_internal::dbg_enabled = true;
+
+
+// implementation
+namespace __dbg_internal {
+
+// Add two spaces to indentation before the new {} block
 void IncreaseIndent() {
   indent += "  ";
 }
@@ -164,15 +481,6 @@ void PrintCurrTime() {
 }
 
 
-// Distiguish scalar types like int, float or char
-template <class T>
-concept is_scalar = std::is_scalar_v<T>;
-
-// Distinguish class types, regardless from std or user-defined
-template <class T>
-concept is_class = std::is_class_v<T>;
-
-
 // Print scalar type like int, float or char
 template <class T>
   requires is_scalar<T>
@@ -196,9 +504,45 @@ void PrettyPrint(std::reference_wrapper<T> x) {
 }
 
 
+// Print std::pair of two scalars
+template <class F, class S>
+  requires is_scalar<F> && is_scalar<S>
+void PrettyPrint(const std::pair<F, S> &x) {
+  out << "{" << x.first << ", " << x.second << "}";
+}
+
+// Print std::pair where at least one element is class object
+template <class F, class S>
+  requires is_class<F> || is_class<S>
+void PrettyPrint(const std::pair<F, S> &x) {
+  out << "{\n";
+  IncreaseIndent();
+  out << indent << "first: ";
+  PrintTypeName(x.first);
+  out << " = ";
+  PrettyPrint(x.first);
+  out << "\n" << indent << "second: ";
+  PrintTypeName(x.second);
+  out << " = ";
+  PrettyPrint(x.second);
+  DecreaseIndent();
+  out << "\n" << indent << "}";
+}
+
+
 // Print std::string
 void PrettyPrint(const std::string &x) {
   out << "\"" << x << "\"";
+}
+
+// Print std::string_view
+void PrettyPrint(const std::string_view &x) {
+  out << "\"" << x << "\"";
+}
+
+// Print std::stringstream contents
+void PrettyPrint(const std::stringstream &x) {
+  out << "\"" << x.str() << "\"";
 }
 
 
@@ -619,131 +963,4 @@ void PrettyPrint(const std::shared_ptr<T> &x) {
   out << "\n" << indent << "}";
 }
 
-
-// Parse single C-string into argument names that DERIVE_DEBUG was called with
-// DERIVE_DEBUG can be called with fields, expressions and method calls, for
-// instance: DERIVE_DEBUG(a, b + c, (Method(a, b))). In order to correctly split
-// on ["a", "b + c", "Method(a, b)"], not ["a", "b + c", "Method(a", "b)"],
-// the method callings should be enclosed in parentheses.
-class ArgNames {
- public:
-  ArgNames(const char *args) : args_(args) {
-  }
-
-  std::string pop() {
-    for (; idx_ < args_.size() and isspace(args_[idx_]); ++idx_) {
-    }
-    if (idx_ == args_.size()) {
-      return "";
-    }
-
-    std::string name;
-    if (args_[idx_] == '(') {
-      int lvl = 1, end = idx_ + 1;
-      for (; end < args_.size(); ++end) {
-        if (args_[end] == '(') {
-          ++lvl;
-        } else if (args_[end] == ')') {
-          --lvl;
-        }
-
-        if (lvl == 0) {
-          break;
-        }
-      }
-      name = args_.substr(idx_ + 1, end - idx_ - 1);
-      for (; end < args_.size() and args_[end] != ','; ++end) {
-      }
-      idx_ = end + 1;
-
-    } else {
-      int end = idx_ + 1;
-      for (; end < args_.size() and args_[end] != ','; ++end) {
-      }
-      name = args_.substr(idx_, end - idx_);
-      idx_ = end + 1;
-    }
-
-    return name;
-  }
-
- private:
-  std::string args_;
-  int idx_ = 0;
-};
-
-
-// Call the PrettyPrint on the last argument from the given variadic list
-// assigning it the top name from ArgNames.
-template <class T>
-void MultiplexPrettyPrintOnNamedArgs(ArgNames &names, const T &last) {
-  out << indent << names.pop() << ": ";
-  PrintTypeName(last);
-  out << " = ";
-  PrettyPrint(last);
-  out << "\n";
-}
-
-// Call the PrettyPrint on the first argument from the given variadic list
-// assigning it the top name from ArgNames. The following call reduces argument
-// list by one
-template <class T, class... Args>
-void MultiplexPrettyPrintOnNamedArgs(ArgNames &names, const T &first,
-                                     const Args &...args) {
-  out << indent << names.pop() << ": ";
-  PrintTypeName(first);
-  out << " = ";
-  PrettyPrint(first);
-  out << "\n";
-  MultiplexPrettyPrintOnNamedArgs(names, args...);
-}
-
-// Parse single C-string into argument names that dbg or DERIVE_DEBUG was called
-// with and start calling PrettyPrint on the arguments one by one
-template <class... Args>
-void MultiplexPrettyPrintOnVaArgs(const char *names, const Args &...args) {
-  ArgNames arg_names(names);
-  MultiplexPrettyPrintOnNamedArgs(arg_names, args...);
-}
-
 }  // namespace __dbg_internal
-
-
-// Print the debug information in the following form:
-// [<file>:<line> (<function>) <date> <time>]
-// <variable>: <type> = <pretty-printed variable>
-// This is repeated for each nested variable with the nice indentation
-#define dbg(...)                                                             \
-  if (__dbg_internal::dbg_enabled) {                                         \
-    if (__dbg_internal::dbg_was_called)                                      \
-      __dbg_internal::out << "\n";                                           \
-    __dbg_internal::dbg_was_called = true;                                   \
-    __dbg_internal::out << "[" << __FILE__ << ":" << __LINE__ << " ("        \
-                        << __func__ << ") ";                                 \
-    __dbg_internal::PrintCurrTime();                                         \
-    __dbg_internal::out << "]\n";                                            \
-    __dbg_internal::MultiplexPrettyPrintOnVaArgs(#__VA_ARGS__, __VA_ARGS__); \
-    std::flush(__dbg_internal::out);                                         \
-  }
-
-
-// Generate the PrettyPrint() method within class, that will called from
-// __dbg_internal::PrettyPrint function for user-defined classes.
-// DERIVE_DEBUG can be called with fields, expressions and method calls, for
-// instance: DERIVE_DEBUG(a, b + c, (Method(a, b))). In order to correctly split
-// on ["a", "b + c", "Method(a, b)"], not ["a", "b + c", "Method(a", "b)"],
-// the method callings should be enclosed in parentheses.
-#define DERIVE_DEBUG(...)                                                    \
-  void PrettyPrint() {                                                       \
-    __dbg_internal::out << "{\n";                                            \
-    __dbg_internal::IncreaseIndent();                                        \
-    __dbg_internal::MultiplexPrettyPrintOnVaArgs(#__VA_ARGS__, __VA_ARGS__); \
-    __dbg_internal::DecreaseIndent();                                        \
-    __dbg_internal::out << __dbg_internal::indent << "}";                    \
-    std::flush(__dbg_internal::out);                                         \
-  }
-
-
-// This provides the ability of turning off debugging on some areas of code
-#define DISABLE_DEBUG __dbg_internal::dbg_enabled = false;
-#define ENABLE_DEBUG __dbg_internal::dbg_enabled = true;
