@@ -335,7 +335,7 @@ void PrettyPrint(std::queue<T> x) {
 
 // Print std::queue of class objects
 template <class T>
-  requires is_class<T> && std::copy_constructible<T>
+  requires is_class<T> && std::is_copy_constructible_v<T>
 void PrettyPrint(std::queue<T> x) {
   if (x.empty()) {
     out << "{}";
@@ -376,7 +376,7 @@ void PrettyPrint(std::stack<T> x) {
 
 // Print std::stack of class objects
 template <class T>
-  requires is_class<T> && std::copy_constructible<T>
+  requires is_class<T> && std::is_copy_constructible_v<T>
 void PrettyPrint(std::stack<T> x) {
   if (x.empty()) {
     out << "{}";
